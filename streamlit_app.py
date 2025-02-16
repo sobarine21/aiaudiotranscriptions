@@ -4,6 +4,7 @@ from textblob import TextBlob
 from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
+import matplotlib.pyplot as plt
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -130,6 +131,13 @@ if uploaded_file is not None:
         sentiment_over_time = analyze_sentiment_over_time(transcription_text)
         st.subheader("Sentiment Analysis Over Time")
         st.line_chart(sentiment_over_time)
+
+        # Plot sentiment distribution
+        st.subheader("Sentiment Distribution")
+        plt.hist(sentiment_over_time, bins=20, color='blue', alpha=0.7)
+        plt.xlabel('Sentiment Polarity')
+        plt.ylabel('Frequency')
+        st.pyplot(plt.gcf())
         
         # Add download button for the transcription text
         st.download_button(
