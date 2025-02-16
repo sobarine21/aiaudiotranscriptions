@@ -2,9 +2,11 @@ import streamlit as st
 import requests
 from textblob import TextBlob
 from collections import Counter
-from pydub import AudioSegment
 import re
 from sklearn.feature_extraction.text import CountVectorizer
+import numpy as np
+import wave
+import contextlib
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -41,14 +43,12 @@ def extract_keywords(text):
 
 # Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
 def detect_speakers(audio_file):
-    # For simplicity, we'll simulate speaker detection by splitting audio by silence
-    audio = AudioSegment.from_file(audio_file)
-    silence_thresh = audio.dBFS - 14  # Adjust for sensitivity
-    segments = audio.split_to_mono()  # This will split into individual channels if multiple speakers
-    speakers = []
-    for i, segment in enumerate(segments):
-        # Placeholder: This is where you'd implement actual speaker diarization.
-        speakers.append(f"Speaker {i+1}: {len(segment)} ms")
+    with contextlib.closing(wave.open(audio_file, 'r')) as f:
+        frames = f.getnframes()
+        rate = f.getframerate()
+        duration = frames / float(rate)
+        segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
+        speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
     return speakers
 
 # Streamlit UI
@@ -114,3 +114,4 @@ if uploaded_file is not None:
         st.error(f"Error: {result['error']}")
     else:
         st.warning("Unexpected response from the API.")
+``` ▋
