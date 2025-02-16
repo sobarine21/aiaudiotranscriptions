@@ -50,6 +50,26 @@ def detect_speakers(audio_file):
     speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
     return speakers
 
+# Function to calculate speech rate (words per minute)
+def calculate_speech_rate(text, duration_seconds):
+    words = text.split()
+    num_words = len(words)
+    speech_rate = num_words / (duration_seconds / 60)
+    return speech_rate
+
+# Function to calculate pause duration (simulated)
+def calculate_pause_duration(audio_file):
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    pause_duration = duration * 0.1  # Simulate 10% of the duration as pauses
+    return pause_duration
+
+# Function to analyze call sentiment over time (simulated)
+def analyze_sentiment_over_time(text):
+    sentences = text.split('.')
+    sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
+    return sentiment_over_time
+
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
 st.write("Upload an audio file, and this app will transcribe it using OpenAI Whisper via Hugging Face API.")
@@ -85,6 +105,22 @@ if uploaded_file is not None:
         speakers = detect_speakers(uploaded_file)
         st.subheader("Speaker Detection (Placeholder)")
         st.write(speakers)
+
+        # Speech Rate Calculation
+        duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+        speech_rate = calculate_speech_rate(transcription_text, duration_seconds)
+        st.subheader("Speech Rate")
+        st.write(f"Speech Rate: {speech_rate} words per minute")
+
+        # Pause Duration Calculation
+        pause_duration = calculate_pause_duration(uploaded_file)
+        st.subheader("Pause Duration")
+        st.write(f"Total Pause Duration: {pause_duration} seconds")
+
+        # Sentiment Analysis Over Time
+        sentiment_over_time = analyze_sentiment_over_time(transcription_text)
+        st.subheader("Sentiment Analysis Over Time")
+        st.line_chart(sentiment_over_time)
         
         # Add download button for the transcription text
         st.download_button(
@@ -101,6 +137,9 @@ if uploaded_file is not None:
         
         Keyword Extraction:
         {keywords}
+        
+        Speech Rate: {speech_rate} words per minute
+        Total Pause Duration: {pause_duration} seconds
         """
         st.download_button(
             label="Download Analysis Results",
