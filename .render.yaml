@@ -3,5 +3,5 @@ services:
     name: Ever-support
     env: docker
     buildCommand: "docker build -t ever-support ."
-    startCommand: "docker run -p 8501:8501 ever-support"
+    startCommand: "streamlit run app.py"
     plan: free
