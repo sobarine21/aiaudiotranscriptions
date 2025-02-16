@@ -1,6 +1,5 @@
 streamlit
 requests 
 textblob  
-wave
 scikit-learn
 contextlib
