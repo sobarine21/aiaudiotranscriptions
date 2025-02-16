@@ -4,9 +4,7 @@ from textblob import TextBlob
 from collections import Counter
 import re
 from sklearn.feature_extraction.text import CountVectorizer
-import numpy as np
-import wave
-import contextlib
+import io
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -43,12 +41,10 @@ def extract_keywords(text):
 
 # Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
 def detect_speakers(audio_file):
-    with contextlib.closing(wave.open(audio_file, 'r')) as f:
-        frames = f.getnframes()
-        rate = f.getframerate()
-        duration = frames / float(rate)
-        segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
-        speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
+    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
     return speakers
 
 # Streamlit UI
@@ -114,4 +110,3 @@ if uploaded_file is not None:
         st.error(f"Error: {result['error']}")
     else:
         st.warning("Unexpected response from the API.")
-
