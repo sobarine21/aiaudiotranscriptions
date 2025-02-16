@@ -13,7 +13,7 @@ COPY . /app
 # Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8501 available to the world outside this container
+# Expose the port Streamlit uses (8501)
 EXPOSE 8501
 
 # Run Streamlit when the container starts
