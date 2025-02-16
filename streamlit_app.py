@@ -54,7 +54,10 @@ def detect_speakers(audio_file):
 def calculate_speech_rate(text, duration_seconds):
     words = text.split()
     num_words = len(words)
-    speech_rate = num_words / (duration_seconds / 60)
+    if duration_seconds > 0:
+        speech_rate = num_words / (duration_seconds / 60)
+    else:
+        speech_rate = 0
     return speech_rate
 
 # Function to calculate pause duration (simulated)
@@ -107,15 +110,21 @@ if uploaded_file is not None:
         st.write(speakers)
 
         # Speech Rate Calculation
-        duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-        speech_rate = calculate_speech_rate(transcription_text, duration_seconds)
-        st.subheader("Speech Rate")
-        st.write(f"Speech Rate: {speech_rate} words per minute")
+        try:
+            duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+            speech_rate = calculate_speech_rate(transcription_text, duration_seconds)
+            st.subheader("Speech Rate")
+            st.write(f"Speech Rate: {speech_rate} words per minute")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
 
         # Pause Duration Calculation
-        pause_duration = calculate_pause_duration(uploaded_file)
-        st.subheader("Pause Duration")
-        st.write(f"Total Pause Duration: {pause_duration} seconds")
+        try:
+            pause_duration = calculate_pause_duration(uploaded_file)
+            st.subheader("Pause Duration")
+            st.write(f"Total Pause Duration: {pause_duration} seconds")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
 
         # Sentiment Analysis Over Time
         sentiment_over_time = analyze_sentiment_over_time(transcription_text)
