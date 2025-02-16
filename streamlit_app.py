@@ -1,18 +1,10 @@
 import streamlit as st
 import requests
 from textblob import TextBlob
-import nltk
-from nltk import FreqDist
-from nltk.tokenize import word_tokenize
 from collections import Counter
 from pydub import AudioSegment
-from io import BytesIO
 import re
-
-# Download necessary NLTK resources
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('vader_lexicon')
+from sklearn.feature_extraction.text import CountVectorizer
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -40,15 +32,12 @@ def analyze_sentiment(text):
     sentiment = blob.sentiment
     return sentiment
 
-# Function for keyword extraction using NLTK
+# Function for keyword extraction using CountVectorizer (no NLTK needed)
 def extract_keywords(text):
-    words = word_tokenize(text)
-    words = [word.lower() for word in words if word.isalnum()]  # Remove non-alphanumeric characters
-    stopwords = nltk.corpus.stopwords.words('english')
-    words = [word for word in words if word not in stopwords]
-    freq_dist = FreqDist(words)
-    most_common_words = freq_dist.most_common(10)
-    return most_common_words
+    vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
+    X = vectorizer.fit_transform([text])
+    keywords = vectorizer.get_feature_names_out()
+    return keywords
 
 # Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
 def detect_speakers(audio_file):
