@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: Ever-support
+    env: docker
+    buildCommand: "docker build -t ever-support ."
+    startCommand: "docker run -p 8501:8501 ever-support"
+    plan: free
