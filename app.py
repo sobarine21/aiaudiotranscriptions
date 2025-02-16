@@ -4,13 +4,18 @@ from textblob import TextBlob
 from collections import Counter
 from pydub import AudioSegment
 import re
+import os
 from sklearn.feature_extraction.text import CountVectorizer
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
 
-# Retrieve Hugging Face API token from Streamlit secrets
-API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
+# Retrieve Hugging Face API token from environment variables
+API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
+
+if not API_TOKEN:
+    st.error("API Token is missing. Please set the environment variable 'HUGGINGFACE_API_TOKEN'.")
+
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 # Function to send the audio file to the API
