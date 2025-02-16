@@ -1,17 +1,20 @@
 import streamlit as st
 import requests
 from textblob import TextBlob
-from collections import Counter
-import re
 from sklearn.feature_extraction.text import CountVectorizer
-import io
+import numpy as np
+import google.generativeai as genai
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
 
-# Retrieve Hugging Face API token from Streamlit secrets
+# Retrieve API tokens from Streamlit secrets
 API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
+
+# Configure the generative AI API key
+genai.configure(api_key=GOOGLE_API_KEY)
 
 # Function to send the audio file to the API
 def transcribe_audio(file):
@@ -105,7 +108,23 @@ if uploaded_file is not None:
             file_name="analysis_results.txt",
             mime="text/plain"
         )
-        
+
+        # Generative AI Analysis
+        st.subheader("Generative AI Analysis")
+        prompt = f"Analyze the following text: {transcription_text}"
+        try:
+            # Load and configure the model
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Generate response from the model
+            response = model.generate_content(prompt)
+            
+            # Display response in Streamlit
+            st.write("AI Analysis Response:")
+            st.write(response.text)
+        except Exception as e:
+            st.error(f"Error: {e}")
+
     elif "error" in result:
         st.error(f"Error: {result['error']}")
     else:
