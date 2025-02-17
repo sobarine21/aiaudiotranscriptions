@@ -313,12 +313,6 @@ if uploaded_file is not None:
                 
                 # Generate concise response from the model
                 response = model.generate_content(prompt)
-                
-                # Display response in Streamlit
-                st.write("AI Analysis Response:")
-                st.write(response.text[:500])  # Ensure concise response by limiting to 500 characters
-            except Exception as e:
-                st.error(f"Error: {e}")
 
     elif "error" in result:
         st.error(f"Error: {result['error']}")
