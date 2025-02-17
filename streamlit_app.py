@@ -312,11 +312,11 @@ if uploaded_file is not None:
                 model = genai.GenerativeModel(model_name)
                 
                 # Generate concise response from the model
-                response = model.generate_content(prompt, max_length=150)  # Ensure concise response
+                response = model.generate_content(prompt)
                 
                 # Display response in Streamlit
                 st.write("AI Analysis Response:")
-                st.write(response.text)
+                st.write(response.text[:500])  # Ensure concise response by limiting to 500 characters
             except Exception as e:
                 st.error(f"Error: {e}")
 
