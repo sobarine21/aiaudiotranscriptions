@@ -5,6 +5,12 @@ from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
 import matplotlib.pyplot as plt
+from wordcloud import WordCloud
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
+import langid
+from collections import Counter
+import time
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -34,6 +40,12 @@ def transcribe_audio(file):
 def analyze_sentiment(text):
     blob = TextBlob(text)
     sentiment = blob.sentiment
+    return sentiment
+
+# Enhanced sentiment analysis with VADER
+def analyze_vader_sentiment(text):
+    sia = SentimentIntensityAnalyzer()
+    sentiment = sia.polarity_scores(text)
     return sentiment
 
 # Function for keyword extraction using CountVectorizer (no NLTK needed)
@@ -74,6 +86,23 @@ def analyze_sentiment_over_time(text):
     sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
     return sentiment_over_time
 
+# Detect language of the text
+def detect_language(text):
+    lang, confidence = langid.classify(text)
+    return lang, confidence
+
+# Function to calculate word frequency (top 20 most frequent words)
+def word_frequency(text):
+    words = text.split()
+    word_counts = Counter(words)
+    most_common_words = word_counts.most_common(20)
+    return most_common_words
+
+# Function to generate a word cloud
+def generate_word_cloud(text):
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
+    return wordcloud
+
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
 st.write("Upload an audio file, and this app will transcribe it using OpenAI Whisper via Hugging Face API.")
@@ -95,12 +124,22 @@ if uploaded_file is not None:
         transcription_text = result["text"]
         st.write(transcription_text)
         
-        # Perform Sentiment Analysis
+        # Sentiment Analysis (TextBlob)
         sentiment = analyze_sentiment(transcription_text)
-        st.subheader("Sentiment Analysis")
+        st.subheader("Sentiment Analysis (TextBlob)")
         st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
 
-        # Perform Keyword Extraction
+        # Sentiment Analysis (VADER)
+        vader_sentiment = analyze_vader_sentiment(transcription_text)
+        st.subheader("Sentiment Analysis (VADER)")
+        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
+        
+        # Language Detection
+        lang, confidence = detect_language(transcription_text)
+        st.subheader("Language Detection")
+        st.write(f"Detected Language: {lang}, Confidence: {confidence}")
+
+        # Keyword Extraction
         keywords = extract_keywords(transcription_text)
         st.subheader("Keyword Extraction")
         st.write(keywords)
@@ -132,6 +171,16 @@ if uploaded_file is not None:
         st.subheader("Sentiment Analysis Over Time")
         st.line_chart(sentiment_over_time)
 
+        # Word Frequency Analysis
+        word_freq = word_frequency(transcription_text)
+        st.subheader("Word Frequency Analysis")
+        st.write(word_freq)
+
+        # Word Cloud Visualization
+        wordcloud = generate_word_cloud(transcription_text)
+        st.subheader("Word Cloud")
+        st.image(wordcloud.to_array())
+
         # Plot sentiment distribution
         st.subheader("Sentiment Distribution")
         plt.hist(sentiment_over_time, bins=20, color='blue', alpha=0.7)
@@ -149,8 +198,14 @@ if uploaded_file is not None:
         
         # Add download button for analysis results
         analysis_results = f"""
-        Sentiment Analysis:
+        Sentiment Analysis (TextBlob):
         Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
+        
+        Sentiment Analysis (VADER):
+        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
+        
+        Language Detection:
+        Detected Language: {lang}, Confidence: {confidence}
         
         Keyword Extraction:
         {keywords}
