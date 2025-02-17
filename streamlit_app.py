@@ -244,18 +244,21 @@ if uploaded_file is not None:
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
         prompt = f"Analyze the following text: {transcription_text}"
-        try:
-            # Load and configure the model
-            model = genai.GenerativeModel(model_name)
-            
-            # Generate response from the model
-            response = model.generate_content(prompt)
-            
-            # Display response in Streamlit
-            st.write("AI Analysis Response:")
-            st.write(response.text)
-        except Exception as e:
-            st.error(f"Error: {e}")
+        
+        # Let user decide if they want to use AI analysis
+        if st.button("Run AI Analysis"):
+            try:
+                # Load and configure the model
+                model = genai.GenerativeModel(model_name)
+                
+                # Generate response from the model
+                response = model.generate_content(prompt)
+                
+                # Display response in Streamlit
+                st.write("AI Analysis Response:")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"Error: {e}")
 
     elif "error" in result:
         st.error(f"Error: {result['error']}")
