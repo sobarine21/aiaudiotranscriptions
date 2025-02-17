@@ -12,6 +12,7 @@ import langid
 from collections import Counter
 import os
 import random
+import tempfile  # Add this import statement
 
 # Download the necessary corpora for TextBlob
 import textblob.download_corpora as download_corpora
