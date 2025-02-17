@@ -10,14 +10,8 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
+import time
 import os
-import random
-import tempfile  # Import tempfile
-from functools import lru_cache  # Import lru_cache
-
-# Download the necessary corpora for TextBlob
-import textblob.download_corpora as download_corpora
-download_corpora.download_all()
 
 # Download the vader_lexicon resource
 nltk.download('vader_lexicon')
@@ -29,23 +23,19 @@ API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-t
 API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
-# Improved API routing and load balancing
-@lru_cache(maxsize=1)
-def get_cached_api_keys():
+# Function to cycle through available Gemini models and corresponding API keys
+def get_next_model_and_key():
+    """Cycle through available Gemini models and corresponding API keys."""
     models_and_keys = [
         ('gemini-1.5-flash', os.getenv("API_KEY_GEMINI_1_5_FLASH")),
         ('gemini-2.0-flash', os.getenv("API_KEY_GEMINI_2_0_FLASH")),
         ('gemini-1.5-flash-8b', os.getenv("API_KEY_GEMINI_1_5_FLASH_8B")),
         ('gemini-2.0-flash-exp', os.getenv("API_KEY_GEMINI_2_0_FLASH_EXP")),
     ]
-    return [(model, key) for model, key in models_and_keys if key]
-
-def get_next_model_and_key():
-    """Cycle through available Gemini models and corresponding API keys."""
-    models_and_keys = get_cached_api_keys()
-    if not models_and_keys:
-        return None, None
-    return random.choice(models_and_keys)
+    for model, key in models_and_keys:
+        if key:
+            return model, key
+    return None, None
 
 # Retrieve and configure the generative AI API key
 model_name, GOOGLE_API_KEY = get_next_model_and_key()
@@ -54,41 +44,16 @@ if GOOGLE_API_KEY is not None:
 else:
     st.error("No valid API key found for any Gemini model.")
 
-# Function to split audio file into chunks
-def split_audio(file, chunk_duration=30):
-    file.seek(0, os.SEEK_END)
-    file_size = file.tell()
-    file.seek(0, os.SEEK_SET)
-    
-    chunk_size = int((file_size / chunk_duration) * 30)  # 30 seconds chunks
-    chunks = []
-    
-    for start in range(0, file_size, chunk_size):
-        file.seek(start)
-        chunk_data = file.read(chunk_size)
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-        temp_file.write(chunk_data)
-        temp_file.close()
-        chunks.append(temp_file.name)
-    
-    return chunks
-
 # Function to send the audio file to the API
 def transcribe_audio(file):
     try:
-        # Split the audio file into chunks to avoid payload size limit
-        chunks = split_audio(file)
-        transcription = ""
-        for chunk_path in chunks:
-            with open(chunk_path, "rb") as chunk_file:
-                data = chunk_file.read()
-                response = requests.post(API_URL, headers=HEADERS, data=data)
-                if response.status_code == 200:
-                    transcription += response.json().get("text", "") + " "
-                else:
-                    return {"error": f"API Error: {response.status_code} - {response.text}"}
-        
-        return {"text": transcription.strip()}
+        # Read the file as binary
+        data = file.read()
+        response = requests.post(API_URL, headers=HEADERS, data=data)
+        if response.status_code == 200:
+            return response.json()  # Return transcription
+        else:
+            return {"error": f"API Error: {response.status_code} - {response.text}"}
     except Exception as e:
         return {"error": str(e)}
 
@@ -104,32 +69,19 @@ def analyze_vader_sentiment(text):
     sentiment = sia.polarity_scores(text)
     return sentiment
 
-# Function for keyword extraction using CountVectorizer
+# Function for keyword extraction using CountVectorizer (no NLTK needed)
 def extract_keywords(text):
     vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
     keywords = vectorizer.get_feature_names_out()
     return keywords
 
-# Placeholder function for speaker detection (based on pauses in speech)
+# Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
 def detect_speakers(audio_file):
     audio_data = audio_file.read()
     duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-    segment_duration = 2  # Duration of each segment in seconds
-    num_segments = int(duration / segment_duration)
-    
-    speakers = []
-    current_speaker = 1
-    
-    for i in range(num_segments):
-        start_time = i * segment_duration
-        end_time = (i + 1) * segment_duration
-        speakers.append(f"Speaker {current_speaker}: {start_time:.1f}s to {end_time:.1f}s")
-        
-        # Randomly decide if the speaker should change
-        if random.random() < 0.3:  # 30% chance to switch speaker
-            current_speaker += 1
-    
+    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
+    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
     return speakers
 
 # Function to calculate speech rate (words per minute)
@@ -172,18 +124,6 @@ def generate_word_cloud(text):
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
     return wordcloud
 
-# Function to distill text by extracting key sentences
-def distill_text(text, num_sentences=2):
-    sentences = text.split('.')
-    if len(sentences) <= num_sentences:
-        return text
-    else:
-        # Extract key sentences using TextBlob's noun phrase extraction
-        blob = TextBlob(text)
-        key_sentences = sorted(blob.sentences, key=lambda sentence: len(sentence.noun_phrases), reverse=True)
-        distilled_text = ' '.join([str(sentence) for sentence in key_sentences[:num_sentences]])
-        return distilled_text
-
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
 st.write("Upload an audio file, and this app will transcribe it using OpenAI Whisper via Hugging Face API.")
@@ -205,34 +145,29 @@ if uploaded_file is not None:
         transcription_text = result["text"]
         st.write(transcription_text)
         
-        # Distill the transcription text
-        distilled_text = distill_text(transcription_text)
-        st.subheader("Distilled Transcription")
-        st.write(distilled_text)
-
         # Sentiment Analysis (TextBlob)
-        textblob_sentiment = analyze_sentiment(distilled_text)
+        sentiment = analyze_sentiment(transcription_text)
         st.subheader("Sentiment Analysis (TextBlob)")
-        st.write(f"Polarity: {textblob_sentiment.polarity}, Subjectivity: {textblob_sentiment.subjectivity}")
+        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
 
         # Sentiment Analysis (VADER)
-        vader_sentiment = analyze_vader_sentiment(distilled_text)
+        vader_sentiment = analyze_vader_sentiment(transcription_text)
         st.subheader("Sentiment Analysis (VADER)")
         st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
-
+        
         # Language Detection
-        lang, confidence = detect_language(distilled_text)
+        lang, confidence = detect_language(transcription_text)
         st.subheader("Language Detection")
         st.write(f"Detected Language: {lang}, Confidence: {confidence}")
 
         # Keyword Extraction
-        keywords = extract_keywords(distilled_text)
+        keywords = extract_keywords(transcription_text)
         st.subheader("Keyword Extraction")
         st.write(keywords)
 
-        # Speaker Detection (improved placeholder for simulation)
+        # Speaker Detection (placeholder for actual implementation)
         speakers = detect_speakers(uploaded_file)
-        st.subheader("Speaker Detection")
+        st.subheader("Speaker Detection (Placeholder)")
         st.write(speakers)
 
         # Speech Rate Calculation
@@ -285,7 +220,7 @@ if uploaded_file is not None:
         # Add download button for analysis results
         analysis_results = f"""
         Sentiment Analysis (TextBlob):
-        Polarity: {textblob_sentiment.polarity}, Subjectivity: {textblob_sentiment.subjectivity}
+        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
         
         Sentiment Analysis (VADER):
         Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
@@ -308,7 +243,7 @@ if uploaded_file is not None:
 
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
-        prompt = f"Analyze the following text: {distilled_text}"
+        prompt = f"Analyze the following text: {transcription_text}"
         
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
@@ -316,7 +251,7 @@ if uploaded_file is not None:
                 # Load and configure the model
                 model = genai.GenerativeModel(model_name)
                 
-                # Generate detailed response from the model
+                # Generate response from the model
                 response = model.generate_content(prompt)
                 
                 # Display response in Streamlit
