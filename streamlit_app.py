@@ -10,7 +10,6 @@ import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
-import time
 import os
 
 # Download the vader_lexicon resource
@@ -124,6 +123,18 @@ def generate_word_cloud(text):
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
     return wordcloud
 
+# Function to distill text by extracting key sentences
+def distill_text(text, num_sentences=5):
+    sentences = text.split('.')
+    if len(sentences) <= num_sentences:
+        return text
+    else:
+        # Extract key sentences using TextBlob's noun phrase extraction
+        blob = TextBlob(text)
+        key_sentences = sorted(blob.sentences, key=lambda sentence: len(sentence.noun_phrases), reverse=True)
+        distilled_text = ' '.join([str(sentence) for sentence in key_sentences[:num_sentences]])
+        return distilled_text
+
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
 st.write("Upload an audio file, and this app will transcribe it using OpenAI Whisper via Hugging Face API.")
@@ -145,23 +156,28 @@ if uploaded_file is not None:
         transcription_text = result["text"]
         st.write(transcription_text)
         
+        # Distill the transcription text
+        distilled_text = distill_text(transcription_text)
+        st.subheader("Distilled Transcription")
+        st.write(distilled_text)
+
         # Sentiment Analysis (TextBlob)
-        sentiment = analyze_sentiment(transcription_text)
+        textblob_sentiment = analyze_sentiment(distilled_text)
         st.subheader("Sentiment Analysis (TextBlob)")
-        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
+        st.write(f"Polarity: {textblob_sentiment.polarity}, Subjectivity: {textblob_sentiment.subjectivity}")
 
         # Sentiment Analysis (VADER)
-        vader_sentiment = analyze_vader_sentiment(transcription_text)
+        vader_sentiment = analyze_vader_sentiment(distilled_text)
         st.subheader("Sentiment Analysis (VADER)")
         st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
-        
+
         # Language Detection
-        lang, confidence = detect_language(transcription_text)
+        lang, confidence = detect_language(distilled_text)
         st.subheader("Language Detection")
         st.write(f"Detected Language: {lang}, Confidence: {confidence}")
 
         # Keyword Extraction
-        keywords = extract_keywords(transcription_text)
+        keywords = extract_keywords(distilled_text)
         st.subheader("Keyword Extraction")
         st.write(keywords)
 
@@ -220,7 +236,7 @@ if uploaded_file is not None:
         # Add download button for analysis results
         analysis_results = f"""
         Sentiment Analysis (TextBlob):
-        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
+        Polarity: {textblob_sentiment.polarity}, Subjectivity: {textblob_sentiment.subjectivity}
         
         Sentiment Analysis (VADER):
         Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
@@ -243,7 +259,7 @@ if uploaded_file is not None:
 
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
-        prompt = f"Analyze the following text: {transcription_text}"
+        prompt = f"Analyze the following text: {distilled_text}"
         
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
