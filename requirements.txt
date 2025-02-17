@@ -4,3 +4,4 @@ textblob
 scikit-learn
 google.generativeai
 matplotlib
+wordcloud
