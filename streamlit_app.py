@@ -13,6 +13,7 @@ from collections import Counter
 import os
 import random
 import tempfile  # Import tempfile
+from functools import lru_cache  # Import lru_cache
 
 # Download the necessary corpora for TextBlob
 import textblob.download_corpora as download_corpora
