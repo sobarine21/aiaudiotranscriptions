@@ -75,7 +75,7 @@ def extract_keywords(text):
     keywords = vectorizer.get_feature_names_out()
     return keywords
 
-# Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
+# Placeholder function for speaker detection (based on pauses in speech)
 def detect_speakers(audio_file):
     audio_data = audio_file.read()
     duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
