@@ -77,11 +77,11 @@ def extract_keywords(text):
     return keywords
 
 # Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
-def detect_speakers(transcription_text):
-    sentences = transcription_text.split('.')
-    speakers = []
-    for i, sentence in enumerate(sentences):
-        speakers.append(f"Speaker {i % 2 + 1}: {sentence.strip()}")
+def detect_speakers(audio_file):
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
+    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
     return speakers
 
 # Function to calculate speech rate (words per minute)
@@ -95,9 +95,10 @@ def calculate_speech_rate(text, duration_seconds):
     return speech_rate
 
 # Function to calculate pause duration (simulated)
-def calculate_pause_duration(transcription_text):
-    sentences = transcription_text.split('.')
-    pause_duration = len(sentences) - 1  # Simulate 1 second pause between each sentence
+def calculate_pause_duration(audio_file):
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    pause_duration = duration * 0.1  # Simulate 10% of the duration as pauses
     return pause_duration
 
 # Function to analyze call sentiment over time (simulated)
@@ -131,192 +132,148 @@ def distill_text(text, num_sentences=5):
     distilled_text = ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
     return distilled_text
 
-# Function to detect upsell and cross-sell attempts (placeholder)
-def detect_upsell_cross_sell(text):
-    upsell_keywords = ['upgrade', 'premium', 'advanced', 'exclusive']
-    cross_sell_keywords = ['bundle', 'package', 'additional', 'extra']
-    upsell_detected = any(keyword in text.lower() for keyword in upsell_keywords)
-    cross_sell_detected = any(keyword in text.lower() for keyword in cross_sell_keywords)
-    return upsell_detected, cross_sell_detected
-
-# Function to calculate call closing efficiency (placeholder)
-def calculate_call_closing_efficiency(text):
-    closing_phrases = ['thank you', 'have a nice day', 'goodbye']
-    closing_detected = any(phrase in text.lower() for phrase in closing_phrases)
-    return closing_detected
-
-# Function to calculate turn-taking ratio (placeholder)
-def calculate_turn_taking_ratio(transcription_text):
-    speakers = transcription_text.split('Speaker')
-    num_turns = len(speakers) - 1
-    num_words = len(transcription_text.split())
-    if num_turns > 0:
-        turn_taking_ratio = num_words / num_turns
-    else:
-        turn_taking_ratio = 0
-    return turn_taking_ratio
-
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
 st.write("Upload an audio file, and this app will transcribe it using OpenAI Whisper via Hugging Face API.")
 
 # File uploader
-uploaded_files = st.file_uploader("Upload your audio files (e.g., .wav, .flac, .mp3)", type=["wav", "flac", "mp3"], accept_multiple_files=True)
+uploaded_file = st.file_uploader("Upload your audio file (e.g., .wav, .flac, .mp3)", type=["wav", "flac", "mp3"])
 
-if uploaded_files is not None:
-    for uploaded_file in uploaded_files:
-        # Display uploaded audio
-        st.audio(uploaded_file, format="audio/mp3", start_time=0)
-        st.info("Transcribing audio... Please wait.")
+if uploaded_file is not None:
+    # Display uploaded audio
+    st.audio(uploaded_file, format="audio/mp3", start_time=0)
+    st.info("Transcribing audio... Please wait.")
+    
+    # Transcribe the uploaded audio file
+    result = transcribe_audio(uploaded_file)
+    
+    # Display the result
+    if "text" in result:
+        st.success("Transcription Complete:")
+        transcription_text = result["text"]
+        st.write(transcription_text)
         
-        # Transcribe the uploaded audio file
-        result = transcribe_audio(uploaded_file)
+        # Distill text
+        distilled_text = distill_text(transcription_text)
+        st.subheader("Distilled Text")
+        st.write(distilled_text)
         
-        # Display the result
-        if "text" in result:
-            st.success("Transcription Complete:")
-            transcription_text = result["text"]
-            st.write(transcription_text)
-            
-            # Distill text
-            distilled_text = distill_text(transcription_text)
-            st.subheader("Distilled Text")
-            st.write(distilled_text)
-            
-            # Sentiment Analysis (TextBlob)
-            sentiment = analyze_sentiment(distilled_text)
-            st.subheader("Sentiment Analysis (TextBlob)")
-            st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
+        # Sentiment Analysis (TextBlob)
+        sentiment = analyze_sentiment(distilled_text)
+        st.subheader("Sentiment Analysis (TextBlob)")
+        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
 
-            # Sentiment Analysis (VADER)
-            vader_sentiment = analyze_vader_sentiment(distilled_text)
-            st.subheader("Sentiment Analysis (VADER)")
-            st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
-            
-            # Language Detection
-            lang, confidence = detect_language(distilled_text)
-            st.subheader("Language Detection")
-            st.write(f"Detected Language: {lang}, Confidence: {confidence}")
+        # Sentiment Analysis (VADER)
+        vader_sentiment = analyze_vader_sentiment(distilled_text)
+        st.subheader("Sentiment Analysis (VADER)")
+        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
+        
+        # Language Detection
+        lang, confidence = detect_language(distilled_text)
+        st.subheader("Language Detection")
+        st.write(f"Detected Language: {lang}, Confidence: {confidence}")
 
-            # Keyword Extraction
-            keywords = extract_keywords(distilled_text)
-            st.subheader("Keyword Extraction")
-            st.write(keywords)
+        # Keyword Extraction
+        keywords = extract_keywords(distilled_text)
+        st.subheader("Keyword Extraction")
+        st.write(keywords)
 
-            # Speaker Detection (placeholder for actual implementation)
-            speakers = detect_speakers(transcription_text)
-            st.subheader("Speaker Detection (Placeholder)")
-            st.write(speakers)
+        # Speaker Detection (placeholder for actual implementation)
+        speakers = detect_speakers(uploaded_file)
+        st.subheader("Speaker Detection (Placeholder)")
+        st.write(speakers)
 
-            # Speech Rate Calculation
+        # Speech Rate Calculation
+        try:
+            duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+            speech_rate = calculate_speech_rate(distilled_text, duration_seconds)
+            st.subheader("Speech Rate")
+            st.write(f"Speech Rate: {speech_rate} words per minute")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
+
+        # Pause Duration Calculation
+        try:
+            pause_duration = calculate_pause_duration(uploaded_file)
+            st.subheader("Pause Duration")
+            st.write(f"Total Pause Duration: {pause_duration} seconds")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
+
+        # Sentiment Analysis Over Time
+        sentiment_over_time = analyze_sentiment_over_time(distilled_text)
+        st.subheader("Sentiment Analysis Over Time")
+        st.line_chart(sentiment_over_time)
+
+        # Word Frequency Analysis
+        word_freq = word_frequency(distilled_text)
+        st.subheader("Word Frequency Analysis")
+        st.write(word_freq)
+
+        # Word Cloud Visualization
+        wordcloud = generate_word_cloud(distilled_text)
+        st.subheader("Word Cloud")
+        st.image(wordcloud.to_array())
+
+        # Plot sentiment distribution
+        st.subheader("Sentiment Distribution")
+        plt.hist(sentiment_over_time, bins=20, color='blue', alpha=0.7)
+        plt.xlabel('Sentiment Polarity')
+        plt.ylabel('Frequency')
+        st.pyplot(plt.gcf())
+        
+        # Add download button for the transcription text
+        st.download_button(
+            label="Download Transcription",
+            data=transcription_text,
+            file_name="transcription.txt",
+            mime="text/plain"
+        )
+        
+        # Add download button for analysis results
+        analysis_results = f"""
+        Sentiment Analysis (TextBlob):
+        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
+        
+        Sentiment Analysis (VADER):
+        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
+        
+        Language Detection:
+        Detected Language: {lang}, Confidence: {confidence}
+        
+        Keyword Extraction:
+        {keywords}
+        
+        Speech Rate: {speech_rate} words per minute
+        Total Pause Duration: {pause_duration} seconds
+        """
+        st.download_button(
+            label="Download Analysis Results",
+            data=analysis_results,
+            file_name="analysis_results.txt",
+            mime="text/plain"
+        )
+
+        # Generative AI Analysis
+        st.subheader("Generative AI Analysis")
+        prompt = f"Analyze the following call recording transcription for professional call audit purposes in precise way and focus on highlighting the support agents KPI & metrics give numbers and scores for the performance on the metrics : {distilled_text}"
+        
+        # Let user decide if they want to use AI analysis
+        if st.button("Run AI Analysis"):
             try:
-                duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-                speech_rate = calculate_speech_rate(distilled_text, duration_seconds)
-                st.subheader("Speech Rate")
-                st.write(f"Speech Rate: {speech_rate} words per minute")
-            except ZeroDivisionError:
-                st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
+                # Load and configure the model
+                model = genai.GenerativeModel(model_name)
+                
+                # Generate response from the model
+                response = model.generate_content(prompt)
+                
+                # Display response in Streamlit
+                st.write("AI Analysis Response:")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"Error: {e}")
 
-            # Pause Duration Calculation
-            try:
-                pause_duration = calculate_pause_duration(transcription_text)
-                st.subheader("Pause Duration")
-                st.write(f"Total Pause Duration: {pause_duration} seconds")
-            except ZeroDivisionError:
-                st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
-
-            # Sentiment Analysis Over Time
-            sentiment_over_time = analyze_sentiment_over_time(distilled_text)
-            st.subheader("Sentiment Analysis Over Time")
-            st.line_chart(sentiment_over_time)
-
-            # Word Frequency Analysis
-            word_freq = word_frequency(distilled_text)
-            st.subheader("Word Frequency Analysis")
-            st.write(word_freq)
-
-            # Word Cloud Visualization
-            wordcloud = generate_word_cloud(distilled_text)
-            st.subheader("Word Cloud")
-            st.image(wordcloud.to_array())
-
-            # Plot sentiment distribution
-            st.subheader("Sentiment Distribution")
-            plt.hist(sentiment_over_time, bins=20, color='blue', alpha=0.7)
-            plt.xlabel('Sentiment Polarity')
-            plt.ylabel('Frequency')
-            st.pyplot(plt.gcf())
-            
-            # Turn-Taking Ratio
-            turn_taking_ratio = calculate_turn_taking_ratio(transcription_text)
-            st.subheader("Turn-Taking Ratio")
-            st.write(f"Turn-Taking Ratio: {turn_taking_ratio} words per turn")
-
-            # Call Closing Efficiency
-            call_closing_efficiency = calculate_call_closing_efficiency(transcription_text)
-            st.subheader("Call Closing Efficiency")
-            st.write(f"Call Closing Detected: {call_closing_efficiency}")
-
-            # Upsell and Cross-sell Detection
-            upsell, cross_sell = detect_upsell_cross_sell(transcription_text)
-            st.subheader("Upsell and Cross-sell Detection")
-            st.write(f"Upsell Detected: {upsell}, Cross-sell Detected: {cross_sell}")
-            
-            # Add download button for the transcription text
-            st.download_button(
-                label="Download Transcription",
-                data=transcription_text,
-                file_name="transcription.txt",
-                mime="text/plain"
-            )
-            
-            # Add download button for analysis results
-            analysis_results = f"""
-            Sentiment Analysis (TextBlob):
-            Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
-            
-            Sentiment Analysis (VADER):
-            Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
-            
-            Language Detection:
-            Detected Language: {lang}, Confidence: {confidence}
-            
-            Keyword Extraction:
-            {keywords}
-            
-            Speech Rate: {speech_rate} words per minute
-            Total Pause Duration: {pause_duration} seconds
-            Turn-Taking Ratio: {turn_taking_ratio} words per turn
-            Call Closing Detected: {call_closing_efficiency}
-            Upsell Detected: {upsell}, Cross-sell Detected: {cross_sell}
-            """
-            st.download_button(
-                label="Download Analysis Results",
-                data=analysis_results,
-                file_name="analysis_results.txt",
-                mime="text/plain"
-            )
-
-            # Generative AI Analysis
-            st.subheader("Generative AI Analysis")
-            prompt = f"Analyze the following call recording transcription for professional call audit purposes in precise way and focus on highlighting the support agents KPI & metrics give numbers and scores for the performance on the metrics : {distilled_text}"
-            
-            # Let user decide if they want to use AI analysis
-            if st.button("Run AI Analysis"):
-                try:
-                    # Load and configure the model
-                    model = genai.GenerativeModel(model_name)
-                    
-                    # Generate response from the model
-                    response = model.generate_content(prompt)
-                    
-                    # Display response in Streamlit
-                    st.write("AI Analysis Response:")
-                    st.write(response.text)
-                except Exception as e:
-                    st.error(f"Error: {e}")
-
-        elif "error" in result:
-            st.error(f"Error: {result['error']}")
-        else:
-            st.warning("Unexpected response from the API.")
+    elif "error" in result:
+        st.error(f"Error: {result['error']}")
+    else:
+        st.warning("Unexpected response from the API.")
