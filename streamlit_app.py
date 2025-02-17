@@ -11,6 +11,7 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
 import os
+import random
 
 # Download the vader_lexicon resource
 nltk.download('vader_lexicon')
@@ -75,12 +76,25 @@ def extract_keywords(text):
     keywords = vectorizer.get_feature_names_out()
     return keywords
 
-# Placeholder function for speaker detection (based on pauses in speech)
+# Improved placeholder function for speaker detection (based on pauses in speech)
 def detect_speakers(audio_file):
     audio_data = audio_file.read()
     duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
-    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
+    segment_duration = 2  # Duration of each segment in seconds
+    num_segments = int(duration / segment_duration)
+    
+    speakers = []
+    current_speaker = 1
+    
+    for i in range(num_segments):
+        start_time = i * segment_duration
+        end_time = (i + 1) * segment_duration
+        speakers.append(f"Speaker {current_speaker}: {start_time:.1f}s to {end_time:.1f}s")
+        
+        # Randomly decide if the speaker should change
+        if random.random() < 0.3:  # 30% chance to switch speaker
+            current_speaker += 1
+    
     return speakers
 
 # Function to calculate speech rate (words per minute)
@@ -181,9 +195,9 @@ if uploaded_file is not None:
         st.subheader("Keyword Extraction")
         st.write(keywords)
 
-        # Speaker Detection (placeholder for actual implementation)
+        # Speaker Detection (improved placeholder for simulation)
         speakers = detect_speakers(uploaded_file)
-        st.subheader("Speaker Detection (Placeholder)")
+        st.subheader("Speaker Detection")
         st.write(speakers)
 
         # Speech Rate Calculation
