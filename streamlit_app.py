@@ -12,6 +12,7 @@ import langid
 from collections import Counter
 import os
 import random
+import tempfile  # Import tempfile
 
 # Download the necessary corpora for TextBlob
 import textblob.download_corpora as download_corpora
@@ -48,16 +49,41 @@ if GOOGLE_API_KEY is not None:
 else:
     st.error("No valid API key found for any Gemini model.")
 
+# Function to split audio file into chunks
+def split_audio(file, chunk_duration=30):
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0, os.SEEK_SET)
+    
+    chunk_size = int((file_size / chunk_duration) * 30)  # 30 seconds chunks
+    chunks = []
+    
+    for start in range(0, file_size, chunk_size):
+        file.seek(start)
+        chunk_data = file.read(chunk_size)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        temp_file.write(chunk_data)
+        temp_file.close()
+        chunks.append(temp_file.name)
+    
+    return chunks
+
 # Function to send the audio file to the API
 def transcribe_audio(file):
     try:
-        # Read the file as binary
-        data = file.read()
-        response = requests.post(API_URL, headers=HEADERS, data=data)
-        if response.status_code == 200:
-            return response.json()  # Return transcription
-        else:
-            return {"error": f"API Error: {response.status_code} - {response.text}"}
+        # Split the audio file into chunks to avoid payload size limit
+        chunks = split_audio(file)
+        transcription = ""
+        for chunk_path in chunks:
+            with open(chunk_path, "rb") as chunk_file:
+                data = chunk_file.read()
+                response = requests.post(API_URL, headers=HEADERS, data=data)
+                if response.status_code == 200:
+                    transcription += response.json().get("text", "") + " "
+                else:
+                    return {"error": f"API Error: {response.status_code} - {response.text}"}
+        
+        return {"text": transcription.strip()}
     except Exception as e:
         return {"error": str(e)}
 
@@ -73,14 +99,14 @@ def analyze_vader_sentiment(text):
     sentiment = sia.polarity_scores(text)
     return sentiment
 
-# Function for keyword extraction using CountVectorizer (no NLTK needed)
+# Function for keyword extraction using CountVectorizer
 def extract_keywords(text):
     vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
     keywords = vectorizer.get_feature_names_out()
     return keywords
 
-# Improved placeholder function for speaker detection (based on pauses in speech)
+# Placeholder function for speaker detection (based on pauses in speech)
 def detect_speakers(audio_file):
     audio_data = audio_file.read()
     duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
@@ -142,7 +168,7 @@ def generate_word_cloud(text):
     return wordcloud
 
 # Function to distill text by extracting key sentences
-def distill_text(text, num_sentences=5):
+def distill_text(text, num_sentences=3):
     sentences = text.split('.')
     if len(sentences) <= num_sentences:
         return text
@@ -285,7 +311,7 @@ if uploaded_file is not None:
                 # Load and configure the model
                 model = genai.GenerativeModel(model_name)
                 
-                # Generate response from the model
+                # Generate detailed response from the model
                 response = model.generate_content(prompt)
                 
                 # Display response in Streamlit
