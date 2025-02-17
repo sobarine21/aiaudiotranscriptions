@@ -243,7 +243,7 @@ if uploaded_file is not None:
 
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
-        prompt = f"Analyze the following call recording transcription: {transcription_text}"
+        prompt = f"Analyze the following call recording transcription for call audit purposes: {transcription_text}"
         
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
