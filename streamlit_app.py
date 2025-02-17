@@ -311,8 +311,8 @@ if uploaded_file is not None:
                 # Load and configure the model
                 model = genai.GenerativeModel(model_name)
                 
-                # Generate response from the model
-                response = model.generate_content(prompt, max_tokens=250)  # Limit the response length
+                # Generate concise response from the model
+                response = model.generate_content(prompt, max_length=150)  # Ensure concise response
                 
                 # Display response in Streamlit
                 st.write("AI Analysis Response:")
