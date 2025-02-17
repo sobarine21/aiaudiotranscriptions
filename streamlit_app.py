@@ -48,16 +48,41 @@ if GOOGLE_API_KEY is not None:
 else:
     st.error("No valid API key found for any Gemini model.")
 
+# Function to split audio file into chunks
+def split_audio(file, chunk_duration=30):
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0, os.SEEK_SET)
+    
+    chunk_size = int((file_size / chunk_duration) * 30)  # 30 seconds chunks
+    chunks = []
+    
+    for start in range(0, file_size, chunk_size):
+        file.seek(start)
+        chunk_data = file.read(chunk_size)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
+        temp_file.write(chunk_data)
+        temp_file.close()
+        chunks.append(temp_file.name)
+    
+    return chunks
+
 # Function to send the audio file to the API
 def transcribe_audio(file):
     try:
-        # Read the file as binary
-        data = file.read()
-        response = requests.post(API_URL, headers=HEADERS, data=data)
-        if response.status_code == 200:
-            return response.json()  # Return transcription
-        else:
-            return {"error": f"API Error: {response.status_code} - {response.text}"}
+        # Split the audio file into chunks to avoid payload size limit
+        chunks = split_audio(file)
+        transcription = ""
+        for chunk_path in chunks:
+            with open(chunk_path, "rb") as chunk_file:
+                data = chunk_file.read()
+                response = requests.post(API_URL, headers=HEADERS, data=data)
+                if response.status_code == 200:
+                    transcription += response.json().get("text", "") + " "
+                else:
+                    return {"error": f"API Error: {response.status_code} - {response.text}"}
+        
+        return {"text": transcription.strip()}
     except Exception as e:
         return {"error": str(e)}
 
