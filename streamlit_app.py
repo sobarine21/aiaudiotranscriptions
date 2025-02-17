@@ -12,7 +12,7 @@ import langid
 from collections import Counter
 import os
 import random
-import tempfile  # Add this import statement
+import tempfile  # Import tempfile
 
 # Download the necessary corpora for TextBlob
 import textblob.download_corpora as download_corpora
@@ -99,14 +99,14 @@ def analyze_vader_sentiment(text):
     sentiment = sia.polarity_scores(text)
     return sentiment
 
-# Function for keyword extraction using CountVectorizer (no NLTK needed)
+# Function for keyword extraction using CountVectorizer
 def extract_keywords(text):
     vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
     keywords = vectorizer.get_feature_names_out()
     return keywords
 
-# Improved placeholder function for speaker detection (based on pauses in speech)
+# Placeholder function for speaker detection (based on pauses in speech)
 def detect_speakers(audio_file):
     audio_data = audio_file.read()
     duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
@@ -312,7 +312,7 @@ if uploaded_file is not None:
                 model = genai.GenerativeModel(model_name)
                 
                 # Generate response from the model
-                response = model.generate_content(prompt)
+                response = model.generate_content(prompt, max_tokens=250)  # Limit the response length
                 
                 # Display response in Streamlit
                 st.write("AI Analysis Response:")
