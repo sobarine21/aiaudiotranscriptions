@@ -11,6 +11,7 @@ from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
 import time
+import os
 
 # Download the vader_lexicon resource
 nltk.download('vader_lexicon')
@@ -20,11 +21,28 @@ API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-t
 
 # Retrieve API tokens from Streamlit secrets
 API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
-# Configure the generative AI API key
-genai.configure(api_key=GOOGLE_API_KEY)
+# Function to cycle through available Gemini models and corresponding API keys
+def get_next_model_and_key():
+    """Cycle through available Gemini models and corresponding API keys."""
+    models_and_keys = [
+        ('gemini-1.5-flash', os.getenv("API_KEY_GEMINI_1_5_FLASH")),
+        ('gemini-2.0-flash', os.getenv("API_KEY_GEMINI_2_0_FLASH")),
+        ('gemini-1.5-flash-8b', os.getenv("API_KEY_GEMINI_1_5_FLASH_8B")),
+        ('gemini-2.0-flash-exp', os.getenv("API_KEY_GEMINI_2_0_FLASH_EXP")),
+    ]
+    for model, key in models_and_keys:
+        if key:
+            return model, key
+    return None, None
+
+# Retrieve and configure the generative AI API key
+model_name, GOOGLE_API_KEY = get_next_model_and_key()
+if GOOGLE_API_KEY is not None:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    st.error("No valid API key found for any Gemini model.")
 
 # Function to send the audio file to the API
 def transcribe_audio(file):
@@ -228,7 +246,7 @@ if uploaded_file is not None:
         prompt = f"Analyze the following text: {transcription_text}"
         try:
             # Load and configure the model
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel(model_name)
             
             # Generate response from the model
             response = model.generate_content(prompt)
