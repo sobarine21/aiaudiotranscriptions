@@ -77,11 +77,11 @@ def extract_keywords(text):
     return keywords
 
 # Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
-def detect_speakers(audio_file):
-    audio_data = audio_file.read()
-    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
-    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
+def detect_speakers(transcription_text):
+    sentences = transcription_text.split('.')
+    speakers = []
+    for i, sentence in enumerate(sentences):
+        speakers.append(f"Speaker {i % 2 + 1}: {sentence.strip()}")
     return speakers
 
 # Function to calculate speech rate (words per minute)
@@ -95,10 +95,9 @@ def calculate_speech_rate(text, duration_seconds):
     return speech_rate
 
 # Function to calculate pause duration (simulated)
-def calculate_pause_duration(audio_file):
-    audio_data = audio_file.read()
-    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-    pause_duration = duration * 0.1  # Simulate 10% of the duration as pauses
+def calculate_pause_duration(transcription_text):
+    sentences = transcription_text.split('.')
+    pause_duration = len(sentences) - 1  # Simulate 1 second pause between each sentence
     return pause_duration
 
 # Function to analyze call sentiment over time (simulated)
@@ -147,10 +146,10 @@ def calculate_call_closing_efficiency(text):
     return closing_detected
 
 # Function to calculate turn-taking ratio (placeholder)
-def calculate_turn_taking_ratio(text):
-    speakers = text.split('Speaker')
+def calculate_turn_taking_ratio(transcription_text):
+    speakers = transcription_text.split('Speaker')
     num_turns = len(speakers) - 1
-    num_words = len(text.split())
+    num_words = len(transcription_text.split())
     if num_turns > 0:
         turn_taking_ratio = num_words / num_turns
     else:
@@ -205,7 +204,7 @@ if uploaded_files is not None:
             st.write(keywords)
 
             # Speaker Detection (placeholder for actual implementation)
-            speakers = detect_speakers(uploaded_file)
+            speakers = detect_speakers(transcription_text)
             st.subheader("Speaker Detection (Placeholder)")
             st.write(speakers)
 
@@ -220,7 +219,7 @@ if uploaded_files is not None:
 
             # Pause Duration Calculation
             try:
-                pause_duration = calculate_pause_duration(uploaded_file)
+                pause_duration = calculate_pause_duration(transcription_text)
                 st.subheader("Pause Duration")
                 st.write(f"Total Pause Duration: {pause_duration} seconds")
             except ZeroDivisionError:
