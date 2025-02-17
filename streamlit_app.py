@@ -13,6 +13,10 @@ from collections import Counter
 import os
 import random
 
+# Download the necessary corpora for TextBlob
+import textblob.download_corpora as download_corpora
+download_corpora.download_all()
+
 # Download the vader_lexicon resource
 nltk.download('vader_lexicon')
 
