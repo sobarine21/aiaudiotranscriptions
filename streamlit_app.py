@@ -28,19 +28,23 @@ API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-t
 API_TOKEN = st.secrets["HUGGINGFACE_API_TOKEN"]
 HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
-# Function to cycle through available Gemini models and corresponding API keys
-def get_next_model_and_key():
-    """Cycle through available Gemini models and corresponding API keys."""
+# Improved API routing and load balancing
+@lru_cache(maxsize=1)
+def get_cached_api_keys():
     models_and_keys = [
         ('gemini-1.5-flash', os.getenv("API_KEY_GEMINI_1_5_FLASH")),
         ('gemini-2.0-flash', os.getenv("API_KEY_GEMINI_2_0_FLASH")),
         ('gemini-1.5-flash-8b', os.getenv("API_KEY_GEMINI_1_5_FLASH_8B")),
         ('gemini-2.0-flash-exp', os.getenv("API_KEY_GEMINI_2_0_FLASH_EXP")),
     ]
-    for model, key in models_and_keys:
-        if key:
-            return model, key
-    return None, None
+    return [(model, key) for model, key in models_and_keys if key]
+
+def get_next_model_and_key():
+    """Cycle through available Gemini models and corresponding API keys."""
+    models_and_keys = get_cached_api_keys()
+    if not models_and_keys:
+        return None, None
+    return random.choice(models_and_keys)
 
 # Retrieve and configure the generative AI API key
 model_name, GOOGLE_API_KEY = get_next_model_and_key()
@@ -168,7 +172,7 @@ def generate_word_cloud(text):
     return wordcloud
 
 # Function to distill text by extracting key sentences
-def distill_text(text, num_sentences=3):
+def distill_text(text, num_sentences=2):
     sentences = text.split('.')
     if len(sentences) <= num_sentences:
         return text
@@ -303,7 +307,7 @@ if uploaded_file is not None:
 
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
-        prompt = f"Analyze the following text in short and precise way: {distilled_text}"
+        prompt = f"Analyze the following text: {distilled_text}"
         
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
