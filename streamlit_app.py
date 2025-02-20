@@ -1,24 +1,15 @@
 import streamlit as st
 import requests
-from nltk import sent_tokenize, word_tokenize, pos_tag
 from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-import nltk
-from nltk.sentiment import SentimentIntensityAnalyzer
+from transformers import pipeline
 import langid
 from collections import Counter
 import time
 import os
-
-# Download the necessary NLTK resources
-nltk.download('vader_lexicon')
-nltk.download('punkt')
-nltk.download('brown')
-nltk.download('wordnet')
-nltk.download('averaged_perceptron_tagger')
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -61,10 +52,10 @@ def transcribe_audio(file):
     except Exception as e:
         return {"error": str(e)}
 
-# Function to perform sentiment analysis using VADER
-def analyze_vader_sentiment(text):
-    sia = SentimentIntensityAnalyzer()
-    sentiment = sia.polarity_scores(text)
+# Function to perform sentiment analysis using transformers
+def analyze_sentiment(text):
+    sentiment_pipeline = pipeline("sentiment-analysis")
+    sentiment = sentiment_pipeline(text)
     return sentiment
 
 # Function for keyword extraction using CountVectorizer
@@ -101,9 +92,9 @@ def calculate_pause_duration(audio_file):
 
 # Function to analyze call sentiment over time (simulated)
 def analyze_sentiment_over_time(text):
-    sentences = sent_tokenize(text)
-    sia = SentimentIntensityAnalyzer()
-    sentiment_over_time = [sia.polarity_scores(sentence)['compound'] for sentence in sentences if sentence]
+    sentences = text.split('.')
+    sentiment_pipeline = pipeline("sentiment-analysis")
+    sentiment_over_time = [sentiment_pipeline(sentence)[0]['score'] for sentence in sentences if sentence]
     return sentiment_over_time
 
 # Detect language of the text
@@ -125,9 +116,9 @@ def generate_word_cloud(text):
 
 # Function to distill text by extracting important sentences
 def distill_text(text, num_sentences=5):
-    sentences = sent_tokenize(text)
-    sia = SentimentIntensityAnalyzer()
-    scored_sentences = sorted(sentences, key=lambda s: sia.polarity_scores(s)['compound'], reverse=True)
+    sentences = text.split('.')
+    sentiment_pipeline = pipeline("sentiment-analysis")
+    scored_sentences = sorted(sentences, key=lambda s: sentiment_pipeline(s)[0]['score'], reverse=True)
     distilled_text = ' '.join(scored_sentences[:num_sentences])
     return distilled_text
 
@@ -157,10 +148,10 @@ if uploaded_file is not None:
         st.subheader("Distilled Text")
         st.write(distilled_text)
         
-        # Sentiment Analysis (VADER)
-        vader_sentiment = analyze_vader_sentiment(distilled_text)
-        st.subheader("Sentiment Analysis (VADER)")
-        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}, Compound: {vader_sentiment['compound']}")
+        # Sentiment Analysis (Transformers)
+        sentiment = analyze_sentiment(distilled_text)
+        st.subheader("Sentiment Analysis (Transformers)")
+        st.write(f"Label: {sentiment[0]['label']}, Score: {sentiment[0]['score']}")
         
         # Language Detection
         lang, confidence = detect_language(distilled_text)
@@ -226,8 +217,8 @@ if uploaded_file is not None:
         
         # Add download button for analysis results
         analysis_results = f"""
-        Sentiment Analysis (VADER):
-        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}, Compound: {vader_sentiment['compound']}
+        Sentiment Analysis (Transformers):
+        Label: {sentiment[0]['label']}, Score: {sentiment[0]['score']}
         
         Language Detection:
         Detected Language: {lang}, Confidence: {confidence}
