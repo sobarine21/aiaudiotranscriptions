@@ -1,15 +1,20 @@
 import streamlit as st
 import requests
+from textblob import TextBlob
 from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-from transformers import pipeline
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
 import time
 import os
+
+# Download the vader_lexicon resource
+nltk.download('vader_lexicon')
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -52,13 +57,19 @@ def transcribe_audio(file):
     except Exception as e:
         return {"error": str(e)}
 
-# Function to perform sentiment analysis using transformers
+# Function to perform sentiment analysis using TextBlob
 def analyze_sentiment(text):
-    sentiment_pipeline = pipeline("sentiment-analysis")
-    sentiment = sentiment_pipeline(text)
+    blob = TextBlob(text)
+    sentiment = blob.sentiment
     return sentiment
 
-# Function for keyword extraction using CountVectorizer
+# Enhanced sentiment analysis with VADER
+def analyze_vader_sentiment(text):
+    sia = SentimentIntensityAnalyzer()
+    sentiment = sia.polarity_scores(text)
+    return sentiment
+
+# Function for keyword extraction using CountVectorizer (no NLTK needed)
 def extract_keywords(text):
     vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
@@ -93,8 +104,7 @@ def calculate_pause_duration(audio_file):
 # Function to analyze call sentiment over time (simulated)
 def analyze_sentiment_over_time(text):
     sentences = text.split('.')
-    sentiment_pipeline = pipeline("sentiment-analysis")
-    sentiment_over_time = [sentiment_pipeline(sentence)[0]['score'] for sentence in sentences if sentence]
+    sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
     return sentiment_over_time
 
 # Detect language of the text
@@ -116,10 +126,10 @@ def generate_word_cloud(text):
 
 # Function to distill text by extracting important sentences
 def distill_text(text, num_sentences=5):
-    sentences = text.split('.')
-    sentiment_pipeline = pipeline("sentiment-analysis")
-    scored_sentences = sorted(sentences, key=lambda s: sentiment_pipeline(s)[0]['score'], reverse=True)
-    distilled_text = ' '.join(scored_sentences[:num_sentences])
+    blob = TextBlob(text)
+    sentences = blob.sentences
+    scored_sentences = sorted(sentences, key=lambda s: s.sentiment.polarity, reverse=True)
+    distilled_text = ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
     return distilled_text
 
 # Streamlit UI
@@ -148,10 +158,15 @@ if uploaded_file is not None:
         st.subheader("Distilled Text")
         st.write(distilled_text)
         
-        # Sentiment Analysis (Transformers)
+        # Sentiment Analysis (TextBlob)
         sentiment = analyze_sentiment(distilled_text)
-        st.subheader("Sentiment Analysis (Transformers)")
-        st.write(f"Label: {sentiment[0]['label']}, Score: {sentiment[0]['score']}")
+        st.subheader("Sentiment Analysis (TextBlob)")
+        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
+
+        # Sentiment Analysis (VADER)
+        vader_sentiment = analyze_vader_sentiment(distilled_text)
+        st.subheader("Sentiment Analysis (VADER)")
+        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
         
         # Language Detection
         lang, confidence = detect_language(distilled_text)
@@ -217,8 +232,11 @@ if uploaded_file is not None:
         
         # Add download button for analysis results
         analysis_results = f"""
-        Sentiment Analysis (Transformers):
-        Label: {sentiment[0]['label']}, Score: {sentiment[0]['score']}
+        Sentiment Analysis (TextBlob):
+        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
+        
+        Sentiment Analysis (VADER):
+        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
         
         Language Detection:
         Detected Language: {lang}, Confidence: {confidence}
