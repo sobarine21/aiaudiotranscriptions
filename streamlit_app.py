@@ -12,8 +12,9 @@ import langid
 from collections import Counter
 import os
 
-# Download the vader_lexicon resource if not already downloaded
+# Download the necessary NLTK corpora
 nltk.download('vader_lexicon', quiet=True)
+nltk.download('punkt', quiet=True)
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
