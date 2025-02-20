@@ -1,8 +1,9 @@
 streamlit
 requests 
-transformers  
+nltk   
 scikit-learn
 google.generativeai
 matplotlib
 wordcloud
 langid
+textblob 
