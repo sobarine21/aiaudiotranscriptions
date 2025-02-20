@@ -6,10 +6,15 @@ import numpy as np
 import google.generativeai as genai
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 import langid
 from collections import Counter
+import time
 import os
-from nltk.sentiment import SentimentIntensityAnalyzer
+
+# Download the vader_lexicon resource
+nltk.download('vader_lexicon')
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -20,6 +25,7 @@ HEADERS = {"Authorization": f"Bearer {API_TOKEN}"}
 
 # Function to cycle through available Gemini models and corresponding API keys
 def get_next_model_and_key():
+    """Cycle through available Gemini models and corresponding API keys."""
     models_and_keys = [
         ('gemini-1.5-flash', os.getenv("API_KEY_GEMINI_1_5_FLASH")),
         ('gemini-2.0-flash', os.getenv("API_KEY_GEMINI_2_0_FLASH")),
@@ -31,47 +37,87 @@ def get_next_model_and_key():
             return model, key
     return None, None
 
+# Retrieve and configure the generative AI API key
+model_name, GOOGLE_API_KEY = get_next_model_and_key()
+if GOOGLE_API_KEY is not None:
+    genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    st.error("No valid API key found for any Gemini model.")
+
 # Function to send the audio file to the API
 def transcribe_audio(file):
     try:
+        # Read the file as binary
         data = file.read()
         response = requests.post(API_URL, headers=HEADERS, data=data)
-        response.raise_for_status()
-        return response.json()
-    except requests.RequestException as e:
+        if response.status_code == 200:
+            return response.json()  # Return transcription
+        else:
+            return {"error": f"API Error: {response.status_code} - {response.text}"}
+    except Exception as e:
         return {"error": str(e)}
+
+# Function to perform sentiment analysis using TextBlob
+def analyze_sentiment(text):
+    blob = TextBlob(text)
+    sentiment = blob.sentiment
+    return sentiment
 
 # Enhanced sentiment analysis with VADER
 def analyze_vader_sentiment(text):
     sia = SentimentIntensityAnalyzer()
-    return sia.polarity_scores(text)
+    sentiment = sia.polarity_scores(text)
+    return sentiment
 
-# Function for keyword extraction using CountVectorizer
+# Function for keyword extraction using CountVectorizer (no NLTK needed)
 def extract_keywords(text):
-    vectorizer = CountVectorizer(stop_words='english', max_features=10)
+    vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
-    return vectorizer.get_feature_names_out()
+    keywords = vectorizer.get_feature_names_out()
+    return keywords
+
+# Function to simulate speaker detection (based on pauses in speech, for now, this is a placeholder)
+def detect_speakers(audio_file):
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    segments = int(duration // 2)  # Simulate speaker detection by splitting into 2-second intervals
+    speakers = [f"Speaker {i+1}: {2*i} - {2*(i+1)} seconds" for i in range(segments)]
+    return speakers
 
 # Function to calculate speech rate (words per minute)
 def calculate_speech_rate(text, duration_seconds):
     words = text.split()
     num_words = len(words)
-    return num_words / (duration_seconds / 60) if duration_seconds > 0 else 0
+    if duration_seconds > 0:
+        speech_rate = num_words / (duration_seconds / 60)
+    else:
+        speech_rate = 0
+    return speech_rate
+
+# Function to calculate pause duration (simulated)
+def calculate_pause_duration(audio_file):
+    audio_data = audio_file.read()
+    duration = len(audio_data) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+    pause_duration = duration * 0.1  # Simulate 10% of the duration as pauses
+    return pause_duration
 
 # Function to analyze call sentiment over time (simulated)
 def analyze_sentiment_over_time(text):
     sentences = text.split('.')
-    return [TextBlob(sentence).sentiment.polarity for sentence in sentences if sentence]
+    sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
+    return sentiment_over_time
 
 # Detect language of the text
 def detect_language(text):
-    return langid.classify(text)
+    lang, confidence = langid.classify(text)
+    return lang, confidence
 
-# Function to calculate word frequency
+# Function to calculate word frequency (top 20 most frequent words)
 def word_frequency(text):
     words = text.split()
     word_counts = Counter(words)
-    return word_counts.most_common(20)
+    most_common_words = word_counts.most_common(20)
+    return most_common_words
 
 # Function to generate a word cloud
 def generate_word_cloud(text):
@@ -83,7 +129,8 @@ def distill_text(text, num_sentences=5):
     blob = TextBlob(text)
     sentences = blob.sentences
     scored_sentences = sorted(sentences, key=lambda s: s.sentiment.polarity, reverse=True)
-    return ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
+    distilled_text = ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
+    return distilled_text
 
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
@@ -112,7 +159,7 @@ if uploaded_file is not None:
         st.write(distilled_text)
         
         # Sentiment Analysis (TextBlob)
-        sentiment = TextBlob(distilled_text).sentiment
+        sentiment = analyze_sentiment(distilled_text)
         st.subheader("Sentiment Analysis (TextBlob)")
         st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
 
@@ -131,11 +178,27 @@ if uploaded_file is not None:
         st.subheader("Keyword Extraction")
         st.write(keywords)
 
-        # Speech Rate Calculation (using audio file duration)
-        duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Estimate based on sample rate (44100 Hz)
-        speech_rate = calculate_speech_rate(distilled_text, duration_seconds)
-        st.subheader("Speech Rate")
-        st.write(f"Speech Rate: {speech_rate} words per minute")
+        # Speaker Detection (placeholder for actual implementation)
+        speakers = detect_speakers(uploaded_file)
+        st.subheader("Speaker Detection (Placeholder)")
+        st.write(speakers)
+
+        # Speech Rate Calculation
+        try:
+            duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
+            speech_rate = calculate_speech_rate(distilled_text, duration_seconds)
+            st.subheader("Speech Rate")
+            st.write(f"Speech Rate: {speech_rate} words per minute")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
+
+        # Pause Duration Calculation
+        try:
+            pause_duration = calculate_pause_duration(uploaded_file)
+            st.subheader("Pause Duration")
+            st.write(f"Total Pause Duration: {pause_duration} seconds")
+        except ZeroDivisionError:
+            st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
 
         # Sentiment Analysis Over Time
         sentiment_over_time = analyze_sentiment_over_time(distilled_text)
@@ -182,6 +245,7 @@ if uploaded_file is not None:
         {keywords}
         
         Speech Rate: {speech_rate} words per minute
+        Total Pause Duration: {pause_duration} seconds
         """
         st.download_button(
             label="Download Analysis Results",
@@ -197,8 +261,13 @@ if uploaded_file is not None:
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
             try:
+                # Load and configure the model
                 model = genai.GenerativeModel(model_name)
+                
+                # Generate response from the model
                 response = model.generate_content(prompt)
+                
+                # Display response in Streamlit
                 st.write("AI Analysis Response:")
                 st.write(response.text)
             except Exception as e:
