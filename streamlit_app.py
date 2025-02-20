@@ -13,8 +13,12 @@ from collections import Counter
 import time
 import os
 
-# Download the vader_lexicon resource
+# Download necessary corpora for TextBlob and NLTK
 nltk.download('vader_lexicon')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('punkt')
+nltk.download('brown')
+nltk.download('wordnet')
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
