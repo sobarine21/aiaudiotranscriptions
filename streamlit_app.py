@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from textblob import TextBlob
+from nltk import sent_tokenize, word_tokenize, pos_tag
 from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
@@ -61,19 +61,13 @@ def transcribe_audio(file):
     except Exception as e:
         return {"error": str(e)}
 
-# Function to perform sentiment analysis using TextBlob
-def analyze_sentiment(text):
-    blob = TextBlob(text)
-    sentiment = blob.sentiment
-    return sentiment
-
-# Enhanced sentiment analysis with VADER
+# Function to perform sentiment analysis using VADER
 def analyze_vader_sentiment(text):
     sia = SentimentIntensityAnalyzer()
     sentiment = sia.polarity_scores(text)
     return sentiment
 
-# Function for keyword extraction using CountVectorizer (no NLTK needed)
+# Function for keyword extraction using CountVectorizer
 def extract_keywords(text):
     vectorizer = CountVectorizer(stop_words='english', max_features=10)  # Extract top 10 frequent words
     X = vectorizer.fit_transform([text])
@@ -107,8 +101,9 @@ def calculate_pause_duration(audio_file):
 
 # Function to analyze call sentiment over time (simulated)
 def analyze_sentiment_over_time(text):
-    sentences = text.split('.')
-    sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
+    sentences = sent_tokenize(text)
+    sia = SentimentIntensityAnalyzer()
+    sentiment_over_time = [sia.polarity_scores(sentence)['compound'] for sentence in sentences if sentence]
     return sentiment_over_time
 
 # Detect language of the text
@@ -130,10 +125,10 @@ def generate_word_cloud(text):
 
 # Function to distill text by extracting important sentences
 def distill_text(text, num_sentences=5):
-    blob = TextBlob(text)
-    sentences = blob.sentences
-    scored_sentences = sorted(sentences, key=lambda s: s.sentiment.polarity, reverse=True)
-    distilled_text = ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
+    sentences = sent_tokenize(text)
+    sia = SentimentIntensityAnalyzer()
+    scored_sentences = sorted(sentences, key=lambda s: sia.polarity_scores(s)['compound'], reverse=True)
+    distilled_text = ' '.join(scored_sentences[:num_sentences])
     return distilled_text
 
 # Streamlit UI
@@ -162,15 +157,10 @@ if uploaded_file is not None:
         st.subheader("Distilled Text")
         st.write(distilled_text)
         
-        # Sentiment Analysis (TextBlob)
-        sentiment = analyze_sentiment(distilled_text)
-        st.subheader("Sentiment Analysis (TextBlob)")
-        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
-
         # Sentiment Analysis (VADER)
         vader_sentiment = analyze_vader_sentiment(distilled_text)
         st.subheader("Sentiment Analysis (VADER)")
-        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
+        st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}, Compound: {vader_sentiment['compound']}")
         
         # Language Detection
         lang, confidence = detect_language(distilled_text)
@@ -236,11 +226,8 @@ if uploaded_file is not None:
         
         # Add download button for analysis results
         analysis_results = f"""
-        Sentiment Analysis (TextBlob):
-        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
-        
         Sentiment Analysis (VADER):
-        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
+        Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}, Compound: {vader_sentiment['compound']}
         
         Language Detection:
         Detected Language: {lang}, Confidence: {confidence}
