@@ -1,6 +1,6 @@
 streamlit
 requests 
-textblob  
+transformers  
 scikit-learn
 google.generativeai
 matplotlib
