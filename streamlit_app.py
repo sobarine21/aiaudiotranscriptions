@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-from textblob import TextBlob
 from sklearn.feature_extraction.text import CountVectorizer
 import numpy as np
 import google.generativeai as genai
@@ -13,12 +12,8 @@ from collections import Counter
 import time
 import os
 
-# Download necessary corpora for TextBlob and NLTK
+# Download necessary corpora for NLTK
 nltk.download('vader_lexicon')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('punkt')
-nltk.download('brown')
-nltk.download('wordnet')
 
 # Set up Hugging Face API details
 API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
@@ -61,12 +56,6 @@ def transcribe_audio(file):
     except Exception as e:
         return {"error": str(e)}
 
-# Function to perform sentiment analysis using TextBlob
-def analyze_sentiment(text):
-    blob = TextBlob(text)
-    sentiment = blob.sentiment
-    return sentiment
-
 # Enhanced sentiment analysis with VADER
 def analyze_vader_sentiment(text):
     sia = SentimentIntensityAnalyzer()
@@ -108,7 +97,7 @@ def calculate_pause_duration(audio_file):
 # Function to analyze call sentiment over time (simulated)
 def analyze_sentiment_over_time(text):
     sentences = text.split('.')
-    sentiment_over_time = [analyze_sentiment(sentence).polarity for sentence in sentences if sentence]
+    sentiment_over_time = [analyze_vader_sentiment(sentence)['compound'] for sentence in sentences if sentence]
     return sentiment_over_time
 
 # Detect language of the text
@@ -127,14 +116,6 @@ def word_frequency(text):
 def generate_word_cloud(text):
     wordcloud = WordCloud(width=800, height=400, background_color='white').generate(text)
     return wordcloud
-
-# Function to distill text by extracting important sentences
-def distill_text(text, num_sentences=5):
-    blob = TextBlob(text)
-    sentences = blob.sentences
-    scored_sentences = sorted(sentences, key=lambda s: s.sentiment.polarity, reverse=True)
-    distilled_text = ' '.join([str(sentence) for sentence in scored_sentences[:num_sentences]])
-    return distilled_text
 
 # Streamlit UI
 st.title("🎙️ Audio Transcription & Analysis Web App")
@@ -157,28 +138,18 @@ if uploaded_file is not None:
         transcription_text = result["text"]
         st.write(transcription_text)
         
-        # Distill text
-        distilled_text = distill_text(transcription_text)
-        st.subheader("Distilled Text")
-        st.write(distilled_text)
-        
-        # Sentiment Analysis (TextBlob)
-        sentiment = analyze_sentiment(distilled_text)
-        st.subheader("Sentiment Analysis (TextBlob)")
-        st.write(f"Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}")
-
         # Sentiment Analysis (VADER)
-        vader_sentiment = analyze_vader_sentiment(distilled_text)
+        vader_sentiment = analyze_vader_sentiment(transcription_text)
         st.subheader("Sentiment Analysis (VADER)")
         st.write(f"Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}")
-        
+
         # Language Detection
-        lang, confidence = detect_language(distilled_text)
+        lang, confidence = detect_language(transcription_text)
         st.subheader("Language Detection")
         st.write(f"Detected Language: {lang}, Confidence: {confidence}")
 
         # Keyword Extraction
-        keywords = extract_keywords(distilled_text)
+        keywords = extract_keywords(transcription_text)
         st.subheader("Keyword Extraction")
         st.write(keywords)
 
@@ -190,7 +161,7 @@ if uploaded_file is not None:
         # Speech Rate Calculation
         try:
             duration_seconds = len(uploaded_file.read()) / (44100 * 2)  # Assuming 44.1kHz sample rate and 16-bit samples
-            speech_rate = calculate_speech_rate(distilled_text, duration_seconds)
+            speech_rate = calculate_speech_rate(transcription_text, duration_seconds)
             st.subheader("Speech Rate")
             st.write(f"Speech Rate: {speech_rate} words per minute")
         except ZeroDivisionError:
@@ -205,17 +176,17 @@ if uploaded_file is not None:
             st.error("Error: The duration of the audio is zero, which caused a division by zero error.")
 
         # Sentiment Analysis Over Time
-        sentiment_over_time = analyze_sentiment_over_time(distilled_text)
+        sentiment_over_time = analyze_sentiment_over_time(transcription_text)
         st.subheader("Sentiment Analysis Over Time")
         st.line_chart(sentiment_over_time)
 
         # Word Frequency Analysis
-        word_freq = word_frequency(distilled_text)
+        word_freq = word_frequency(transcription_text)
         st.subheader("Word Frequency Analysis")
         st.write(word_freq)
 
         # Word Cloud Visualization
-        wordcloud = generate_word_cloud(distilled_text)
+        wordcloud = generate_word_cloud(transcription_text)
         st.subheader("Word Cloud")
         st.image(wordcloud.to_array())
 
@@ -236,9 +207,6 @@ if uploaded_file is not None:
         
         # Add download button for analysis results
         analysis_results = f"""
-        Sentiment Analysis (TextBlob):
-        Polarity: {sentiment.polarity}, Subjectivity: {sentiment.subjectivity}
-        
         Sentiment Analysis (VADER):
         Positive: {vader_sentiment['pos']}, Neutral: {vader_sentiment['neu']}, Negative: {vader_sentiment['neg']}
         
@@ -260,7 +228,7 @@ if uploaded_file is not None:
 
         # Generative AI Analysis
         st.subheader("Generative AI Analysis")
-        prompt = f"Analyze the following call recording transcription for professional call audit purposes in precise way and focus on highlighting the support agents KPI & metrics give numbers and scores for the performance on the metrics : {distilled_text}"
+        prompt = f"Analyze the following call recording transcription for professional call audit purposes in precise way and focus on highlighting the support agents KPI & metrics give numbers and scores for the performance on the metrics : {transcription_text}"
         
         # Let user decide if they want to use AI analysis
         if st.button("Run AI Analysis"):
